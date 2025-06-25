@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from native_sparse_attention_pytorch import SparseAttention
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -96,7 +97,16 @@ class Block(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
-        self.attn = CausalSelfAttention(config)
+        # self.attn = CausalSelfAttention(config)
+        # use native sparse attention
+        self.attn = SparseAttention(dim=config.n_embd, dim_head=config.n_embd // config.n_head, heads=config.n_head,
+                                    sliding_window_size = 16,
+                                    compress_block_size = 8,
+                                    compress_block_sliding_stride = 2,
+                                    selection_block_size = 4,
+                                    num_selected_blocks = 2,
+                                    causal=True,
+                                    kv_heads=2)
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
 
